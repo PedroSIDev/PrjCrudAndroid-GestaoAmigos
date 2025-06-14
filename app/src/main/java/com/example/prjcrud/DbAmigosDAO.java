@@ -21,6 +21,24 @@ public class DbAmigosDAO {
         return salvar(0, nome, celular, latitude, longitude, status);
     }
 
+    public boolean excluir(int id){
+        return gw.getDatabase().delete(TABLE_AMIGOS, "ID=?", new String[]{ id + "" }) > 0;
+    }
+
+    public void apagarTodos() {
+        gw.getDatabase().delete(TABLE_AMIGOS, null, null);
+    }
+
+    public int getQuantidade(){
+        int total = 0;
+        Cursor cursor = gw.getDatabase().rawQuery("SELECT count(*) FROM " + TABLE_AMIGOS, null);
+        if(cursor.moveToFirst()){
+            total = cursor.getInt(0);
+        }
+        cursor.close();
+        return total;
+    }
+
     public boolean salvar(int id, String nome, String celular, String latitude, String longitude, int status){
         ContentValues cv = new ContentValues();
         cv.put("Nome", nome);
@@ -38,7 +56,7 @@ public class DbAmigosDAO {
 
     public List<DbAmigo> listarAmigos(){
         List<DbAmigo> amigos = new ArrayList<>();
-        Cursor cursor = gw.getDatabase().rawQuery("SELECT * FROM Amigos", null);
+        Cursor cursor = gw.getDatabase().rawQuery("SELECT * FROM " + TABLE_AMIGOS, null);
 
         while (cursor.moveToNext())
         {
@@ -55,7 +73,7 @@ public class DbAmigosDAO {
     }
 
     public DbAmigo ultimoAmigo(){
-        Cursor cursor = gw.getDatabase().rawQuery("SELECT * FROM Amigos ORDER BY ID DESC", null);
+        Cursor cursor = gw.getDatabase().rawQuery("SELECT * FROM " + TABLE_AMIGOS + " ORDER BY ID DESC", null);
         if(cursor.moveToFirst()) {
             int id = cursor.getInt(cursor.getColumnIndex("ID"));
             String nome = cursor.getString(cursor.getColumnIndex("Nome"));

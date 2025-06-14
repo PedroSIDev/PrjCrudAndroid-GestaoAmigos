@@ -1,84 +1,132 @@
 package com.example.prjcrud;
 
-import android.app.Activity;
 import android.content.Context;
-import android.content.ContextWrapper;
 import android.content.Intent;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-
+import android.widget.Toast;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.recyclerview.widget.RecyclerView;
-
 import java.util.List;
 
 public class DbAmigosAdapter extends RecyclerView.Adapter<DbAmigosHolder> {
 
     private final List<DbAmigo> amigos;
+    private final Context context;
 
-    public DbAmigosAdapter(List<DbAmigo> amigos) {
+    public DbAmigosAdapter(List<DbAmigo> amigos, Context context) {
         this.amigos = amigos;
+        this.context = context;
     }
 
-    public void inserirAmigo(DbAmigo amigo){
-        amigos.add(amigo);
-        notifyItemInserted(getItemCount());
-    }
-
-    public void atualizarAmigo(DbAmigo amigo){
-        amigos.set(amigos.indexOf(amigo), amigo);
-        notifyItemChanged(amigos.indexOf(amigo));
-    }
-
-
-    private Activity getActivity(View view) {
-        Context context = view.getContext();
-
-        while (context instanceof ContextWrapper) {
-            if (context instanceof Activity) {
-                return (Activity)context;
-            }
-            context = ((ContextWrapper)context).getBaseContext();
-        }
-        return null;
-    }
-
-    // Este metodo retorna o layout criado pela ViewHolder, inflado numa view
+    @NonNull
     @Override
-    public DbAmigosHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+    public DbAmigosHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         return new DbAmigosHolder(LayoutInflater.from(parent.getContext())
                 .inflate(R.layout.activity_dados_amigo, parent, false));
     }
 
-    // Recebe a ViewHolder e a posição da lista, de forma que um objeto da lista é recuperado pela posição e associado a ela - é o foco da ação para acontecer o processo
-
     @Override
-    public void onBindViewHolder(DbAmigosHolder holder, int position) {
-        holder.txvNome.setText(amigos.get(position).getNome());
-        holder.txvCelular.setText(amigos.get(position).getCelular());
-        holder.txvLatitude.setText(amigos.get(position).getLatitude());
-        holder.txvLongitude.setText(amigos.get(position).getLongitude());
-        holder.btnEditar.setOnClickListener(new Button.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Activity activity = getActivity(v);
-                Intent intent = activity.getIntent();
-                intent.addFlags(Intent.FLAG_ACTIVITY_NO_ANIMATION);
-                intent.putExtra("amigo", amigos.get(position));
-                activity.finish();
-                activity.startActivity(intent);
+    public void onBindViewHolder(@NonNull DbAmigosHolder holder, int position) {
+        DbAmigo amigo = amigos.get(position);
+
+        holder.txvNome.setText(amigo.getNome());
+
+        String celularBruto = amigo.getCelular();
+        String celularFormatado = MaskTextWatcher.mask("(##) # ####-####", celularBruto);
+        holder.txvCelular.setText(celularFormatado);
+
+        holder.txvLatitude.setText("Latitude: " + amigo.getLatitude());
+        holder.txvLongitude.setText("Longitude: " + amigo.getLongitude());
+
+        if (amigo.getLatitude() == null || amigo.getLatitude().isEmpty()) {
+            holder.txvLatitude.setVisibility(View.GONE);
+        } else {
+            holder.txvLatitude.setVisibility(View.VISIBLE);
+        }
+
+        if (amigo.getLongitude() == null || amigo.getLongitude().isEmpty()) {
+            holder.txvLongitude.setVisibility(View.GONE);
+        } else {
+            holder.txvLongitude.setVisibility(View.VISIBLE);
+        }
+
+        holder.btnExcluir.setOnClickListener(v -> {
+            new AlertDialog.Builder(context)
+                    .setTitle("Excluindo...")
+                    .setMessage("Tem certeza que quer excluir o amigo " + amigo.getNome() + "?")
+                    .setPositiveButton("Sim", (dialog, which) -> {
+                        DbAmigosDAO dao = new DbAmigosDAO(context);
+                        dao.excluir(amigo.getId());
+                        excluirAmigo(amigo);
+                        Toast.makeText(context, "Amigo excluído!", Toast.LENGTH_SHORT).show();
+                    })
+                    .setNegativeButton("Não", null)
+                    .create().show();
+        });
+
+        holder.btnEditar.setOnClickListener(v -> {
+            Intent intent = new Intent(context, MainActivity.class);
+            intent.putExtra("amigo", amigo);
+            context.startActivity(intent);
+        });
+
+        holder.btnLigar.setOnClickListener(v -> {
+            Uri uri = Uri.parse("tel:" + amigo.getCelular());
+            Intent intent = new Intent(Intent.ACTION_DIAL, uri);
+            context.startActivity(intent);
+        });
+
+        holder.btnSms.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("sms:" + amigo.getCelular()));
+            intent.putExtra("sms_body", "Olá, " + amigo.getNome() + "! ");
+            context.startActivity(intent);
+        });
+
+        holder.btnWhats.setOnClickListener(v -> {
+            try {
+                String numeroLimpo = amigo.getCelular().replaceAll("[^0-9]", "");
+                String numeroInternacional = "55" + numeroLimpo;
+                String url = "https://api.whatsapp.com/send?phone=" + numeroInternacional;
+                Intent intent = new Intent(Intent.ACTION_VIEW);
+                intent.setData(Uri.parse(url));
+                context.startActivity(intent);
+            } catch (Exception e) {
+                Toast.makeText(context, "Não foi possível abrir o WhatsApp.", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    // Esta função retorna a quantidade de itens que há na lista. É importante verificar se a lista possui elementos, para não causar um erro de exceção.
     @Override
     public int getItemCount() {
         return amigos != null ? amigos.size() : 0;
     }
+
+    public void inserirAmigo(DbAmigo amigo) {
+        amigos.add(amigo);
+        notifyItemInserted(getItemCount());
+    }
+
+    public void excluirAmigo(DbAmigo amigo) {
+        int position = amigos.indexOf(amigo);
+        amigos.remove(position);
+        notifyItemRemoved(position);
+    }
+
+    public void atualizarAmigo(DbAmigo amigo) {
+        int position = -1;
+        for (int i = 0; i < amigos.size(); i++) {
+            if (amigos.get(i).getId() == amigo.getId()) {
+                position = i;
+                break;
+            }
+        }
+        if (position != -1) {
+            amigos.set(position, amigo);
+            notifyItemChanged(position);
+        }
+    }
 }
-
-
-
-

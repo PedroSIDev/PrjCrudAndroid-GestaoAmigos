@@ -8,6 +8,7 @@
     tools:context=".MainActivity">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/app_bar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fitsSystemWindows="true">
@@ -22,9 +23,10 @@
     <include
         android:id="@+id/include_listar_amigos"
         layout="@layout/activity_listar_amigos"
-        android:visibility="visible"/>
-
-
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:visibility="visible" />
     <include
         android:id="@+id/include_cadastrar_amigo"
         layout="@layout/activity_cadastrar_amigo"
